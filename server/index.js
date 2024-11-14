@@ -1,4 +1,3 @@
-// index.js
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -12,7 +11,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Usar las rutas de espacios
+// Ruta para probar el servidor
+app.get('/', (req, res) => {
+  res.send('Servidor funcionando correctamente');
+});
+
+// Usar las rutas de la API
 app.use('/api', spaceRoutes);
 app.use('/api', authRoutes);
 

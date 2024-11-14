@@ -4,6 +4,7 @@ const router = express.Router();
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 // Ruta de registro
 router.post('/register', async (req, res) => {
@@ -22,6 +23,9 @@ router.post('/register', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+router.get('/test-auth', authMiddleware, (req, res) => {
+  res.json({ message: 'Ruta protegida, acceso permitido' });
 });
 
 // Inicio de sesión
@@ -52,6 +56,5 @@ router.post('/login', async (req, res) => {
   }
 });
 
-  
 
 module.exports = router;
