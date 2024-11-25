@@ -1,123 +1,133 @@
-import { useEffect, useState } from 'react';
-import { getSpaces } from '../utils/api';
+import React, { useEffect, useState, useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
+import { getSpaces, deleteSpace } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
   const [spaces, setSpaces] = useState([]);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [filteredSpaces, setFilteredSpaces] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCapacity, setFilterCapacity] = useState('');
+  const [errorMessage, setErrorMessage] = useState(''); // Mensaje de error
+  const { token, role } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // Función para manejar el inicio de sesión
-  const handleLogin = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('http://localhost:5000/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: username, password }),
-      });
-
-      const data = await response.json();
-      console.log('Respuesta del servidor:', data);
-
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        setIsAuthenticated(true);
-        alert('Inicio de sesión exitoso');
-        navigate('/'); // Redireccionar al home
-      } else {
-        alert('Inicio de sesión fallido. Verifica tus credenciales.');
-      }
-    } catch (error) {
-      console.error('Error en el inicio de sesión:', error.message);
-      alert('Error en el inicio de sesión. Intenta nuevamente.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Verificar si el token está disponible y autenticar al cargar la página
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  // Obtener espacios solo si el usuario está autenticado
   useEffect(() => {
     const fetchSpaces = async () => {
-      const token = localStorage.getItem('token');
-
       if (!token) {
-        console.error('Token no disponible. Por favor, inicia sesión.');
+        setErrorMessage('Debes iniciar sesión para ver los espacios disponibles.');
         return;
       }
 
       try {
         const data = await getSpaces(token);
         setSpaces(data);
+        setFilteredSpaces(data);
+        setErrorMessage(''); // Limpiar mensaje de error si ya tiene acceso
       } catch (error) {
-        console.error('Error al obtener los espacios:', error);
-        alert('No se pudieron obtener los espacios. Intenta nuevamente.');
+        setErrorMessage('Error al obtener los espacios.');
       }
     };
 
-    if (isAuthenticated) {
-      fetchSpaces();
-    }
-  }, [isAuthenticated]);
+    fetchSpaces();
+  }, [token]);
 
-  // Función para cerrar sesión
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsAuthenticated(false);
-    setSpaces([]);
-    alert('Has cerrado sesión.');
+  useEffect(() => {
+    // Filtrar espacios por nombre y capacidad
+    const filtered = spaces.filter((space) => {
+      return (
+        space.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (filterCapacity ? space.capacity >= filterCapacity : true)
+      );
+    });
+    setFilteredSpaces(filtered);
+  }, [searchTerm, filterCapacity, spaces]);
+
+  const handleDelete = async (id) => {
+    if (window.confirm('¿Estás seguro de eliminar este espacio?')) {
+      try {
+        await deleteSpace(token, id);
+        setSpaces((prev) => prev.filter((space) => space._id !== id));
+        alert('Espacio eliminado');
+      } catch (error) {
+        alert('Error al eliminar el espacio');
+      }
+    }
   };
 
   return (
-    <div>
-      {!isAuthenticated ? (
-        <div>
-          <h2>Iniciar Sesión</h2>
-          <input
-            type="text"
-            placeholder="Correo Electrónico"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button onClick={handleLogin} disabled={loading}>
-            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+    <div className="container mt-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2>Espacios Disponibles</h2>
+        {role === 'admin' && token && (
+          <button
+            className="btn btn-success"
+            onClick={() => navigate('/create-space')}
+          >
+            Crear Nuevo Espacio
           </button>
-        </div>
+        )}
+      </div>
+      {errorMessage ? (
+        <div className="alert alert-warning">{errorMessage}</div>
       ) : (
-        <div>
-          <h2>Espacios Disponibles</h2>
-          <button onClick={handleLogout}>Cerrar Sesión</button>
-          {spaces.length > 0 ? (
-            <ul>
-              {spaces.map((space) => (
-                <li key={space._id}>
-                  <strong>{space.name}</strong>: {space.description}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No hay espacios disponibles.</p>
-          )}
-        </div>
+        <>
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Buscar por nombre..."
+              className="form-control mb-2"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <select
+              className="form-select"
+              value={filterCapacity}
+              onChange={(e) => setFilterCapacity(e.target.value)}
+            >
+              <option value="">Filtrar por capacidad</option>
+              <option value="10">10 o más personas</option>
+              <option value="20">20 o más personas</option>
+              <option value="30">30 o más personas</option>
+            </select>
+          </div>
+          <ul className="list-group">
+            {filteredSpaces.map((space) => (
+              <li
+                key={space._id}
+                className="list-group-item d-flex justify-content-between align-items-center"
+              >
+                <div>
+                  <strong>{space.name}</strong>: {space.description} (Capacidad: {space.capacity})
+                </div>
+                <div>
+                  <button
+                    className="btn btn-success btn-sm me-2"
+                    onClick={() => navigate(`/reserve-space/${space._id}`)}
+                  >
+                    Reservar
+                  </button>
+                  {role === 'admin' && (
+                    <>
+                      <button
+                        className="btn btn-primary btn-sm me-2"
+                        onClick={() => navigate(`/edit-space/${space._id}`)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete(space._id)}
+                      >
+                        Eliminar
+                      </button>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );

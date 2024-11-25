@@ -1,60 +1,38 @@
-// routes/authRoutes.js
 const express = require('express');
-const router = express.Router();
-const User = require('../models/User');
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const authMiddleware = require('../middlewares/authMiddleware');
+const User = require('../models/User'); // Asegúrate de que este modelo exista
 
-// Ruta de registro
-router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
-  try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'El usuario ya existe' });
-    }
+const router = express.Router(); // Definir el router
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ name, email, password: hashedPassword });
-    await newUser.save();
-
-    res.status(201).json({ message: 'Usuario registrado exitosamente' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-router.get('/test-auth', authMiddleware, (req, res) => {
-  res.json({ message: 'Ruta protegida, acceso permitido' });
-});
-
-// Inicio de sesión
+// Endpoint de inicio de sesión
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Buscar al usuario por email
+    // Buscar el usuario en la base de datos
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(401).json({ message: 'Usuario no encontrado' });
     }
 
-    // Verificar la contraseña
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Credenciales incorrectas' });
+    // Comparar la contraseña
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Contraseña incorrecta' });
     }
 
     // Generar el token JWT
-    const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '1h',
-    });
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
 
-    res.json({ token });
+    res.json({ token, role: user.role });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error en el login:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
   }
 });
-
 
 module.exports = router;

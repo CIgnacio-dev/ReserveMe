@@ -11,20 +11,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Ruta para probar el servidor
-app.get('/', (req, res) => {
-  res.send('Servidor funcionando correctamente');
-});
-
-// Usar las rutas de la API
-app.use('/api', spaceRoutes);
+app.use('/api', spaceRoutes); // Ruta base para los espacios
 app.use('/api', authRoutes);
 
 const PORT = process.env.PORT || 5000;
 
-mongoose.connect(process.env.MONGO_URI)
+mongoose
+  .connect(process.env.MONGO_URI)
   .then(() => console.log('Conectado a MongoDB'))
-  .catch((error) => console.error('Error al conectar a MongoDB:', error.message));
+  .catch((error) => console.error('Error al conectar a MongoDB:', error));
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);

@@ -1,22 +1,9 @@
-
 const mongoose = require('mongoose');
 
-const SpaceSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-  },
-  description: {
-    type: String,
-  },
-  price: {
-    type: Number,
-    required: true,
-  },
-  isAvailable: {
-    type: Boolean,
-    default: true,
-  },
-}, { timestamps: true });
+const spaceSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  description: { type: String, required: true },
+  capacity: { type: Number, required: true },
+});
 
-module.exports = mongoose.model('Space', SpaceSchema);
+module.exports = mongoose.model('Space', spaceSchema);
